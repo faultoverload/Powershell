@@ -9,7 +9,7 @@ or ConfigurationManager.psd1 module installed on it. This module can be found in
 "C:\Program Files (x86)\Microsoft Configuration Manager\AdminConsole\bin\ConfigurationManager.psd1"
 folder on any machine that has the console currently installed.
 
-If you wish to use the optional Microsoft Teams output then the PSTeams module should be instaled as 
+If you wish to use the optional Microsoft Teams output then the PSTeams module should be installed as 
 well using the following command.
 	Install-Module PSTeams
 Additional information about this module can be found at the github link below. They have an excelent
