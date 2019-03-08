@@ -21,7 +21,7 @@ https://github.com/EvotecIT/PSTeams
 #>
 
 param(
-	[bool]$Teams=$false,# Does the user want output to teams. Default to False
+	[switch]$Teams,# Does the user want output to teams. Default to False
 	[string]$Folder="C:\Reports\SCCM Deployments\",#Root folder for CSV files
 	[string]$SearchScope="All",#Security scope to use when searching for deployments. Default is All
 	[string]$IgnoreScope="",#Use this if you want to ignore deployments made by users in specific security scopes
@@ -145,53 +145,53 @@ foreach($d in $deployments){
 #Start Teams Message output.
 if($Teams){
 #Notify users about upcoming review items and new deployments.(Now Jenkins/Teams)
-$newFile=Import-Csv $newFileName #This must be here so its imported after being fully created
+	$newFile=Import-Csv $newFileName #This must be here so its imported after being fully created
 <#Generate strings for data I care about
 List of new deployment names added
 List of deployments deleted
 Count of how many have unknown or blank review dates
 Count of how many have past due review dates
 #>
-foreach($item in $newFile){
-	if($oldFile.software -like $item.software){}else{
-		$newDeployment+=("- "+$item.software+"`n")#Generates list of new deployments
-		$newDeploymentCount++
-	}
-	if($item.ReviewDate -eq "Unknown" -or $item.ReviewDate -eq ""){
-		$unknownCount++
-	}else{
-		$formatedDate = [datetime]$item.ReviewDate
-		if($formatedDate -lt $currentDate){
-			$reviewCount++
+	foreach($item in $newFile){
+		if($oldFile.software -like $item.software){}else{
+			$newDeployment+=("- "+$item.software+"`n")#Generates list of new deployments
+			$newDeploymentCount++
+		}
+		if($item.ReviewDate -eq "Unknown" -or $item.ReviewDate -eq ""){
+			$unknownCount++
+		}else{
+			$formatedDate = [datetime]$item.ReviewDate
+			if($formatedDate -lt $currentDate){
+				$reviewCount++
+			}
 		}
 	}
-}
-foreach($item in $oldFile){#Old items
-	if($newFile.software -like $item.software){}else{
-		$oldDeployment+=("- "+$item.software+"`n")#Generates list of old deployments
-		$oldDeploymentCount++
+	foreach($item in $oldFile){#Old items
+		if($newFile.software -like $item.software){}else{
+			$oldDeployment+=("- "+$item.software+"`n")#Generates list of old deployments
+			$oldDeploymentCount++
+		}
 	}
-}
-$oldDeploymentFact = New-TeamsFact -Name "Deleted Deployments" -Value $oldDeployment
-$newDeploymentFact = New-TeamsFact -Name "Added Deployments" -Value $newDeployment
-$summaryFact = New-TeamsFact -Name "Summary" -Value "$unknownCount deployment(s) currently `
-have an unknown review date. `n`
-$reviewCount deployment(s) are past their review date.`n`
-$newDeploymentCount deployment(s) are newly detected this past week.`n`
-$oldDeploymentCount deployment(s) were deleted this past week"
-#Summary of review and unknown review deployments
-$Section1 = New-TeamsSection `
-    -ActivityTitle "Weekly Deployment Status" `
-    -ActivitySubtitle $CurrentDate `
-    -ActivityImageLink $jonGIF `
-    -ActivityText "" `
-    -ActivityDetails $summaryFact, $newDeploymentFact, $oldDeploymentFact
+	$oldDeploymentFact = New-TeamsFact -Name "Deleted Deployments" -Value $oldDeployment
+	$newDeploymentFact = New-TeamsFact -Name "Added Deployments" -Value $newDeployment
+	$summaryFact = New-TeamsFact -Name "Summary" -Value "$unknownCount deployment(s) currently `
+	have an unknown review date. `n`
+	$reviewCount deployment(s) are past their review date.`n`
+	$newDeploymentCount deployment(s) are newly detected this past week.`n`
+	$oldDeploymentCount deployment(s) were deleted this past week"
+	#Summary of review and unknown review deployments
+	$Section1 = New-TeamsSection `
+    	-ActivityTitle "Weekly Deployment Status" `
+    	-ActivitySubtitle $CurrentDate `
+    	-ActivityImageLink $jonGIF `
+    	-ActivityText "" `
+    	-ActivityDetails $summaryFact, $newDeploymentFact, $oldDeploymentFact
 	
-Send-TeamsMessage `
-    -URI $webhookURL `
-    -MessageTitle 'Weekly deployment update' `
-    -MessageText "This text won't show up" `
-    -Color DodgerBlue `
-    -Sections $Section1
+	Send-TeamsMessage `
+    	-URI $webhookURL `
+    	-MessageTitle 'Weekly deployment update' `
+    	-MessageText "This text won't show up" `
+    	-Color DodgerBlue `
+    	-Sections $Section1
 
 }
