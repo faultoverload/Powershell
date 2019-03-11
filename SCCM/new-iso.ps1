@@ -10,19 +10,20 @@ Optional message in teams or email when image is finished.
 
 
 param(
-    [switch]$Teams,# Does the user want output to teams. Default to False
-    [switch]$Email, #Email on completition 
-    [Parameter(Mandatory=$true)][ValidateNotNullOrEmpty][string]$Folder="",#Root folder for ISO to be saved to
+    [Parameter(Mandatory=$true)][string]$Folder="",#Root folder for ISO to be saved to
     [Parameter(Mandatory=$true)][ValidateSet('WinPE','TaskSequence')][string]$mediaType="",#Select WinPE or Full image type
-    [string]$TeamsImage="",#Insert gif or image url here
-    [string]$TeamsURL,#Inset teams webhook url here
-    [string]$EmailTo, #Who should get the email
-    [string]$EmailSMTP, #Internal smtp server to bounce email off
-    [switch]$Force, #Allows bypass of file check
+    [Parameter(Mandatory=$true)][string]$DP, #Point at a single DP or Group
+    [string]$BackupSourceFolder,#Location of backup XML files
     [string]$ISOName, #Set ISO Name
     [string]$TSName, #Sets Task sequence name. Supports wildcards
     [string]$WinPEName,#Sets WinPE name. Supports wildcards
-    [Parameter(Mandatory=$true)][ValidateNotNullOrEmpty][string]$DP #Point at a single DP or Group
+    [switch]$Teams,# Does the user want output to teams. Default to False
+    [string]$TeamsImage="",#Insert gif or image url here
+    [string]$TeamsURL,#Inset teams webhook url here
+    [switch]$Email, #Email on completition 
+    [string]$EmailTo, #Who should get the email
+    [string]$EmailSMTP, #Internal smtp server to bounce email off
+    [switch]$Force #Allows bypass of file check
 )
 
 #Import SCCM Modules and setup run location
@@ -45,18 +46,24 @@ Otherwise just pass the -Force flag to ignore this
 https://gallery.technet.microsoft.com/SCCM-Task-Sequence-Backup-559868bd
 #>
 function checkBackup($isoPath){
-    $backupSourceFolder = ""
-    $taskSequenceName = $TSName
-    $backupsPath = Get-childItem  $backupSourceFolder | Where-Object name -like $taskSequenceName
-    $backupsPath = ($backupsPath |Sort-Object -Descending).name
-    $backupsPath = $backupSourceFolder + $backupsPath[0]
-    $backupFiles = Get-ChildItem $backupsPath
-    $backupDate = $backupFiles[0].LastWriteTime
-    $isoDate = (Get-Item -Path $isoPath).LastWriteTime
-    if($backupDate -gt $isoDate -or $Force){
+    if($Force){
         return $true
     }else{
-        return $false
+        $taskSequenceName = $TSName
+        if($null -eq $backupSourceFolder){
+            throw "Please declare a non-null backup source folder or use the -Force flag"
+        }
+        $backupsPath = Get-childItem  $backupSourceFolder | Where-Object name -like $taskSequenceName
+        $backupsPath = ($backupsPath |Sort-Object -Descending).name
+        $backupsPath = $backupSourceFolder + $backupsPath[0]
+        $backupFiles = Get-ChildItem $backupsPath
+        $backupDate = $backupFiles[0].LastWriteTime
+        $isoDate = (Get-Item -Path $isoPath).LastWriteTime
+        if($backupDate -gt $isoDate){
+            return $true
+        }else{
+            return $false
+        }
     }
 }
 
@@ -91,7 +98,7 @@ switch ($mediaType) {
             -Path $imagePath `
             -Force
         $endTime = new-timespan -end $(Get-Date) -Start $currentDate
-        $fact1= New-TeamsFact -Name "Boot ISO" -Value "Created a new boot ISO at $imagePath in $endTime"
+        $fact1= New-TeamsFact -Name "Boot ISO" -Value "Created a new boot ISO at $imagePath in $endTime" -ErrorAction Ignore
     }
     "TaskSequence" {
         $taskSequence = Get-CMTaskSequence $TSName
@@ -111,7 +118,7 @@ switch ($mediaType) {
                 -DistributionPoints $bootDistro `
                 -Force
             $endTime = new-timespan -end $(Get-Date) -Start $currentDate
-            $fact1= New-TeamsFact -Name "Full ISO" -Value "Created a new Full ISO at $imagePath in $endTime"
+            $fact1= New-TeamsFact -Name "Full ISO" -Value "Created a new Full ISO at $imagePath in $endTime" -ErrorAction Ignore
         }else{
             throw "Existing image does not need updated"
         }
